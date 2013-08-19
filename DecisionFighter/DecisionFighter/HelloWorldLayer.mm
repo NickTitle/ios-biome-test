@@ -14,17 +14,20 @@
 // Not included in "cocos2d.h"
 #import "CCPhysicsSprite.h"
 
+#import "Base.h"
+#import "Soldier.h"
+
 // Needed to obtain the Navigation Controller
 #import "AppDelegate.h"
 
-NSMutableArray *gGArray;
+NSMutableArray *baseArray;
 NSMutableArray *killList;
 SimpleContactListener *_contactListener;
 
 int oldangle = 0;
-NSMutableArray *touchArray;
 CGPoint loc1 = ccp(200,300);
 CGPoint loc2 = ccp (300, 100);
+bool skip = TRUE;
 
 enum {
 	kTagParentNode = 1,
@@ -35,7 +38,7 @@ enum {
 
 @interface HelloWorldLayer()
 -(void) initPhysics;
--(CCPhysicsSprite *) addNewSpriteAtPosition:(CGPoint)p;
+-(Soldier *) addNewSoldierAtLocation:(CGPoint)p;
 -(void) createMenu;
 @end
 
@@ -64,7 +67,7 @@ enum {
 		
 		self.touchEnabled = YES;
 		self.accelerometerEnabled = YES;
-        touchArray = [NSMutableArray new];
+        baseArray = [NSMutableArray new];
         killList = [NSMutableArray new];
         
 		
@@ -75,9 +78,6 @@ enum {
 		//[self createMenu];
 		
 		//Set up sprite
-        gGArray = [NSMutableArray new];
-
-        [self schedule:@selector(nextFrame:)];
 		[self scheduleUpdate];
 	}
 	return self;
@@ -88,9 +88,10 @@ enum {
 }
 
 -(BOOL) ccTouchBegan:(UITouch *)touch withEvent:(UIEvent *)event {
-    if (![touchArray containsObject:touch] && [touchArray count]< 4) {
-        [touchArray addObject:touch];
-        [self makeSpritesForTouch:touch];
+    if ([baseArray count]< 4) {
+        CGPoint loc = [self convertTouchToNodeSpace:touch];
+        Base *b = [self makeBaseAtLocation:loc];
+        [baseArray addObject:b];
     }
     
     return YES;
@@ -101,79 +102,84 @@ enum {
 
 -(void)ccTouchEnded:(UITouch *)touch withEvent:(UIEvent *)event
 {
-    if ([touchArray containsObject:touch])
-        [touchArray removeObject:touch];
-        [self killSpritesForTouch:touch];
+    
 }
 
--(void) makeSpritesForTouch:(UITouch *)touch {
-    CGPoint loc = [self convertTouchToNodeSpace:touch];
-    NSString *team;
-    if (loc.x < [[CCDirector sharedDirector] winSize].width/2) {
-        team = @"blue";
+-(Base *)makeBaseAtLocation:(CGPoint)p {
+
+    b2BodyDef bodyDef;
+	bodyDef.type = b2_dynamicBody;
+	bodyDef.position.Set(p.x/PTM_RATIO, p.y/PTM_RATIO);
+	b2Body *body = world->CreateBody(&bodyDef);
+	
+    b2PolygonShape dynamicHex;
+    b2Vec2 vertices[4];
+    for (int i=0; i<4; i++) {
+        float angle = -i/4.0 * 360 * M_PI/180;
+        vertices[i].Set(sinf(angle),cosf(angle));
+    }
+    dynamicHex.Set(vertices, 4);
+    
+	b2FixtureDef fixtureDef;
+	fixtureDef.shape = &dynamicHex;
+	fixtureDef.density = .7f;
+	fixtureDef.friction = 0.1f;
+	body->CreateFixture(&fixtureDef);
+    CCNode *parent = [self getChildByTag:kTagParentNode];
+    
+    
+    Base *b;
+    
+    if (p.x > [[CCDirector sharedDirector] winSize].width/2) {
+        b = [Base spriteWithFile:@"baseP.png" rect:CGRectMake(0, 0, 160, 160)];
+        [b setTeam:teamA];
     }
     else {
-        team = @"pink";
+        b = [Base spriteWithFile:@"baseB.png" rect:CGRectMake(0, 0, 160, 160)];
+        [b setTeam:teamB];
     }
     
-    for (int i = 0; i < 50; i++) {
-        
-        CCPhysicsSprite *gG = [self addNewSpriteAtPosition:loc];
-        CGFloat newSpeed = MAX(arc4random_uniform(14)+5, 8);
-        NSMutableDictionary *spriteStruct = [@{@"sprite":gG, @"momentumX":@0.0, @"momentumY":@5.0, @"speed":[NSNumber numberWithFloat:newSpeed], @"touch":touch, @"team":team} mutableCopy];
-        [gGArray addObject:spriteStruct];
-        gG.b2Body->SetUserData(spriteStruct);
+    [parent addChild:b];
+	
+	[b setPTMRatio:PTM_RATIO];
+	[b setB2Body:body];
+    body->SetUserData(b);
+	[b setPosition: ccp( p.x, p.y)];
+    
+    [self makeSpritesForBase:b];
+    
+    return b;
+}
+
+-(void) makeSpritesForBase:(Base *)base {
+    CGPoint loc = base.position;
+    
+    for (int i = 0; i < 5; i++) {
+    
+        Soldier *gG = [self addNewSoldierAtLocation:loc];
+        gG.base = base;
+        [base.soldierArray addObject:gG];
         [self addChild:gG];
     }
 }
 
 -(void) killSpritesForTouch:(UITouch *)touch {
-    NSMutableArray *killIndex = [NSMutableArray new];
-    for (NSDictionary *d in gGArray) {
-        if ([d[@"touch"] isEqual:touch]) {
-            [killIndex addObject:d];
-        }
-    }
-    for (NSDictionary *d in killIndex) {
-        [gGArray removeObject:d];
-        CCPhysicsSprite *s = d[@"sprite"];
-        world->DestroyBody(s.b2Body);
-        [s removeFromParentAndCleanup:YES];
-        d = nil;
-    }
+//    NSMutableArray *killIndex = [NSMutableArray new];
+//    for (Soldier *s in gGArray) {
+//        if ([s.touch isEqual:touch]) {
+//            [killIndex addObject:s];
+//        }
+//    }
+//    for (Soldier *s in killIndex) {
+//        [gGArray removeObject:s];
+//        world->DestroyBody(s.b2Body);
+//        [s removeFromParentAndCleanup:YES];
+//        s = nil;
+//    }
 }
 
 -(void) nextFrame:(ccTime)dt {
-//            for (NSMutableDictionary *sD in gGArray) {
-//                CCSprite *s = sD[@"sprite"];
-//                CGPoint sP = s.position;
-//                CGFloat momentumX = [sD[@"momentumX"] floatValue];
-//                CGFloat momentumY = [sD[@"momentumY"] floatValue];
-//                CGFloat newSpeed = [sD[@"speed"] floatValue];
-//                CGFloat dx1 = loc1.x-sP.x;
-//                CGFloat dy1 = loc1.y-sP.y;
-//                
-//                CGFloat angle = atan2f(dy1, dx1);
-//                
-//                momentumX += cos(angle)/2;
-//                momentumY += sin(angle)/2;
-//                
-//                CGFloat totalMomentum = momentumX+momentumY;
-//                if (totalMomentum > newSpeed) {
-//                    CGFloat scale = newSpeed/totalMomentum;
-//                    momentumX *= scale;
-//                    momentumY *= scale;
-//                }
-//                
-//                CGFloat newx = sP.x + momentumX;
-//                CGFloat newy = sP.y + momentumY;
-//                
-//                [s setPosition:ccp(newx, newy)];
-//                s.rotation = angle;
-//                [sD setObject:[NSNumber numberWithFloat:momentumX] forKey:@"momentumX"];
-//                [sD setObject:[NSNumber numberWithFloat:momentumY] forKey:@"momentumY"];
-//                
-//            }
+    
 }
 
 -(void) updateLocation:(ccTime)dt {
@@ -182,54 +188,7 @@ enum {
 
 -(void) createMenu
 {
-	// Default font size will be 22 points.
-	[CCMenuItemFont setFontSize:22];
-	
-	// Reset Button
-	CCMenuItemLabel *reset = [CCMenuItemFont itemWithString:@"Reset" block:^(id sender){
-		[[CCDirector sharedDirector] replaceScene: [HelloWorldLayer scene]];
-	}];
 
-	// to avoid a retain-cycle with the menuitem and blocks
-	__block id copy_self = self;
-
-	// Achievement Menu Item using blocks
-	CCMenuItem *itemAchievement = [CCMenuItemFont itemWithString:@"Achievements" block:^(id sender) {
-		
-		
-		GKAchievementViewController *achivementViewController = [[GKAchievementViewController alloc] init];
-		achivementViewController.achievementDelegate = copy_self;
-		
-		AppController *app = (AppController*) [[UIApplication sharedApplication] delegate];
-		
-		[[app navController] presentModalViewController:achivementViewController animated:YES];
-		
-		[achivementViewController release];
-	}];
-	
-	// Leaderboard Menu Item using blocks
-	CCMenuItem *itemLeaderboard = [CCMenuItemFont itemWithString:@"Leaderboard" block:^(id sender) {
-		
-		
-		GKLeaderboardViewController *leaderboardViewController = [[GKLeaderboardViewController alloc] init];
-		leaderboardViewController.leaderboardDelegate = copy_self;
-		
-		AppController *app = (AppController*) [[UIApplication sharedApplication] delegate];
-		
-		[[app navController] presentModalViewController:leaderboardViewController animated:YES];
-		
-		[leaderboardViewController release];
-	}];
-	
-	CCMenu *menu = [CCMenu menuWithItems:itemAchievement, itemLeaderboard, reset, nil];
-	
-	[menu alignItemsVertically];
-	
-	CGSize size = [[CCDirector sharedDirector] winSize];
-	[menu setPosition:ccp( size.width/2, size.height/2)];
-	
-	
-	[self addChild: menu z:-1];	
 }
 
 -(void) initPhysics
@@ -249,16 +208,16 @@ enum {
 	
 	world->SetContinuousPhysics(true);
 	
-	m_debugDraw = new GLESDebugDraw( PTM_RATIO );
-	world->SetDebugDraw(m_debugDraw);
+//	m_debugDraw = new GLESDebugDraw( PTM_RATIO );
+//	world->SetDebugDraw(m_debugDraw);
 	
-	uint32 flags = 0;
-	flags += b2Draw::e_shapeBit;
+//	uint32 flags = 0;
+//	flags += b2Draw::e_shapeBit;
 	//		flags += b2Draw::e_jointBit;
 	//		flags += b2Draw::e_aabbBit;
 	//		flags += b2Draw::e_pairBit;
 	//		flags += b2Draw::e_centerOfMassBit;
-	m_debugDraw->SetFlags(flags);
+//	m_debugDraw->SetFlags(flags);
 	
 	
 	// Define the ground body.
@@ -275,20 +234,20 @@ enum {
 	
 	// bottom
 	
-//	groundBox.Set(b2Vec2(0,0), b2Vec2(s.width/PTM_RATIO,0));
-//	groundBody->CreateFixture(&groundBox,0);
-	
+	groundBox.Set(b2Vec2(0,0), b2Vec2(s.width/PTM_RATIO,0));
+	groundBody->CreateFixture(&groundBox,0);
+
 	// top
-//	groundBox.Set(b2Vec2(0,s.height/PTM_RATIO), b2Vec2(s.width/PTM_RATIO,s.height/PTM_RATIO));
-//	groundBody->CreateFixture(&groundBox,0);
-	
+	groundBox.Set(b2Vec2(0,s.height/PTM_RATIO), b2Vec2(s.width/PTM_RATIO,s.height/PTM_RATIO));
+	groundBody->CreateFixture(&groundBox,0);
+
 	// left
-//	groundBox.Set(b2Vec2(0,s.height/PTM_RATIO), b2Vec2(0,0));
-//	groundBody->CreateFixture(&groundBox,0);
-	
+	groundBox.Set(b2Vec2(0,s.height/PTM_RATIO), b2Vec2(0,0));
+	groundBody->CreateFixture(&groundBox,0);
+
 	// right
-//	groundBox.Set(b2Vec2(s.width/PTM_RATIO,s.height/PTM_RATIO), b2Vec2(s.width/PTM_RATIO,0));
-//	groundBody->CreateFixture(&groundBox,0);
+	groundBox.Set(b2Vec2(s.width/PTM_RATIO,s.height/PTM_RATIO), b2Vec2(s.width/PTM_RATIO,0));
+	groundBody->CreateFixture(&groundBox,0);
 }
 
 -(void) draw
@@ -309,7 +268,7 @@ enum {
 //    kmGLPopMatrix();
 }
 
--(CCPhysicsSprite *)addNewSpriteAtPosition:(CGPoint)p
+-(Soldier *)addNewSoldierAtLocation:(CGPoint)p
 {
 
 	b2BodyDef bodyDef;
@@ -321,7 +280,7 @@ enum {
     b2Vec2 vertices[6];
     for (int i=0; i<6; i++) {
         float angle = -i/6.0 * 360 * M_PI/180;
-        vertices[i].Set(sinf(angle)/3,cosf(angle)/3);
+        vertices[i].Set(sinf(angle)/2,cosf(angle)/2);
     }
     dynamicHex.Set(vertices, 6);
 
@@ -332,22 +291,28 @@ enum {
 	body->CreateFixture(&fixtureDef);
     CCNode *parent = [self getChildByTag:kTagParentNode];
     
-    CCPhysicsSprite *sprite;
+    Soldier *sprite;
     
     if (p.x > [[CCDirector sharedDirector] winSize].width/2) {
-        sprite = [CCPhysicsSprite spriteWithFile:@"pink.png" rect:CGRectMake(0, 0, 32, 32)];
-        body->SetUserData(@"pink");
+        sprite = [Soldier spriteWithFile:@"pink.png" rect:CGRectMake(0, 0, 32, 32)];
+        [sprite setTeam:teamA];
     }
     else {
-        sprite = [CCPhysicsSprite spriteWithFile:@"blu.png" rect:CGRectMake(0, 0, 32, 32)];
-        [sprite setUserData:@"blu.png"];
-        body->SetUserData(@"blue");
+        sprite = [Soldier spriteWithFile:@"blu.png" rect:CGRectMake(0, 0, 32, 32)];
+        [sprite setTeam:teamB];
     }
+    
+    sprite.speed = arc4random_uniform(10)+5;
+    sprite.momX = 0.0;
+    sprite.momY = 0.0;
+    sprite.health = 100;
+    sprite.power = arc4random_uniform(5)+1;
     
 	[parent addChild:sprite];
 	
 	[sprite setPTMRatio:PTM_RATIO];
 	[sprite setB2Body:body];
+    body->SetUserData(sprite);
 	[sprite setPosition: ccp( p.x, p.y)];
     
     return sprite;
@@ -367,32 +332,43 @@ enum {
 	// Instruct the world to perform a single step of simulation. It is
 	// generally best to keep the time step and iterations fixed
     
-    [self updateMomentums];
-    if ([killList count]) {
-    [self killCollidedSprites];
-    }
+    [self updateSoldierMomentums];
+//    if ([killList count]) {
+//    [self killCollidedSprites];
+//    }
 	
     world->Step(dt, velocityIterations, positionIterations);
 }
 
 -(void)beginContact:(b2Contact *)contact {
-
+    
     b2Fixture *fixtureA = contact->GetFixtureA();
     b2Fixture *fixtureB = contact->GetFixtureB();
     b2Body *bodyA = fixtureA->GetBody();
     b2Body *bodyB = fixtureB->GetBody();
-    NSDictionary *dA = (NSDictionary *) bodyA->GetUserData();
-    NSDictionary *dB = (NSDictionary *) bodyB->GetUserData();
+    
+    id dA = (id)bodyA->GetUserData();
+    id dB = (id)bodyB->GetUserData();
     if (dA == nil || dB == nil) {
         return;
     }
-    NSString *teamA = dA[@"team"];
-    NSString *teamB = dB[@"team"];
+    else if ([dA isKindOfClass:[Soldier class]] && [dB isKindOfClass:[Soldier class]]) {
+        [self collideSoldierA:dA soldierB:dB];
+    };
+}
+
+-(void)endContact:(b2Contact *)contact {
     
-    if ([teamA isEqualToString:teamB]) {
+}
+
+-(void)collideSoldierA:(Soldier *)sA soldierB:(Soldier *)sB {
+    
+    if (sA.team == sB.team) {
         return;
     }
     else {
+        b2Body *bodyA = sA.b2Body;
+        b2Body *bodyB = sB.b2Body;
         
         CGFloat aA = bodyA->GetAngle();
         CGFloat aB = bodyB->GetAngle();
@@ -404,78 +380,77 @@ enum {
         CGFloat dy1 = pB.y-pA.y;
         
         CGFloat aAB = atan2f(dy1, dx1);
-    
+        
         CGFloat dx2 = pA.x-pB.x;
         CGFloat dy2 = pA.y-pB.y;
         
         CGFloat aBA = atan2f(dy2, dx2);
         
-        NSDictionary *killOb;
+        Soldier *killObj;
         if (abs(aA-aAB)<abs(aB-aBA)) {
-            killOb = dB;
+            killObj = sA;
         }
         else {
-            killOb = dA;
+            killObj = sB;
         }
         
-        if (![killList containsObject:killOb]) {
-            [killList addObject:killOb];
+        if (![killList containsObject:killObj]) {
+            [killList addObject:killObj];
         }
     }
-}
 
--(void)endContact:(b2Contact *)contact {
-    
 }
 
 -(void)killCollidedSprites {
-    for (NSDictionary *d in killList) {
-    [gGArray removeObject:d];
-    CCPhysicsSprite *s = d[@"sprite"];
+    for (Soldier *s in killList) {
     world->DestroyBody(s.b2Body);
     [s removeFromParentAndCleanup:YES];
-    d = nil;
+    s = nil;
     }
     [killList removeAllObjects];
 }
 
--(void)updateMomentums {
-    for (NSMutableDictionary *sD in gGArray) {
-        CCPhysicsSprite *s = sD[@"sprite"];
-        CGPoint sP = s.position;
-        CGFloat momentumX = [sD[@"momentumX"] floatValue];
-        CGFloat momentumY = [sD[@"momentumY"] floatValue];
-        CGFloat newSpeed = [sD[@"speed"] floatValue];
-        UITouch *t = sD[@"touch"];
-        CGPoint loc = [self convertTouchToNodeSpace:t];
+-(void)updateSoldierMomentums {
+    skip = !skip;
+    if (skip)
+        return;
+    for (Base *b in baseArray) {
+        [self updateSoldiersForBase:b];
+    }
+}
+
+- (void)updateSoldiersForBase:(Base *)b {
+    for (Soldier *sD in b.soldierArray) {
+        CGPoint sP = sD.position;
+        
+        CGPoint loc = b.position;
         CGFloat dx1 = loc.x-sP.x;
         CGFloat dy1 = loc.y-sP.y;
         
         CGFloat angle = atan2f(dy1, dx1);
         
-        momentumX += cos(angle);
-        momentumY += sin(angle);
-
-        b2Vec2 vel = s.b2Body->GetLinearVelocity();
-        vel.x += momentumX*2;
-        vel.y += momentumY*2;
+        sD.momX += cos(angle);
+        sD.momY += sin(angle);
+        
+        b2Vec2 vel = sD.b2Body->GetLinearVelocity();
+        vel.x += sD.momX*1.5;
+        vel.y += sD.momY*1.5;
         
         CGFloat totalMomentum = abs(vel.x)+abs(vel.y);
-        if (totalMomentum > newSpeed) {
-            CGFloat scale = newSpeed/totalMomentum;
+        if (totalMomentum > sD.speed) {
+            CGFloat scale = sD.speed/totalMomentum;
             vel.x *= scale;
             vel.y *= scale;
         }
-    
-        s.b2Body->SetLinearVelocity(vel);
-        float bodyAngle = atan2f(vel.y, vel.x);
-        s.b2Body->SetTransform( s.b2Body->GetWorldCenter(), bodyAngle);
         
-        [sD setObject:[NSNumber numberWithFloat:vel.x] forKey:@"momentumX"];
-        [sD setObject:[NSNumber numberWithFloat:vel.y] forKey:@"momentumY"];
+        sD.b2Body->SetLinearVelocity(vel);
+        float bodyAngle = atan2f(vel.y, vel.x);
+        sD.b2Body->SetTransform( sD.b2Body->GetWorldCenter(), bodyAngle);
+        
+        sD.momX = vel.x;
+        sD.momY = vel.y;
         
     }
-
 }
 
 -(void) dealloc
