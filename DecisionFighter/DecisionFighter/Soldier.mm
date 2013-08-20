@@ -11,6 +11,6 @@
 
 @implementation Soldier
 
-@synthesize health, speed, team, power, momX, momY, base;
+@synthesize health, speed, team, power, momX, momY, fort, oldDistToFort, currState, countdown, wood;
 
 @end

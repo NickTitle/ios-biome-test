@@ -10,7 +10,7 @@
 #import "cocos2d.h"
 #import "Box2D.h"
 #import "CCPhysicsSprite.h"
-#import "Base.h"
+#import "Fort.h"
 
 @interface Soldier : CCPhysicsSprite {
     
@@ -22,6 +22,19 @@
 @property (nonatomic, assign) int power;
 @property (nonatomic, assign) float momX;
 @property (nonatomic, assign) float momY;
-@property (nonatomic, assign) Base *base;
+@property (nonatomic, assign) Fort *fort;
+@property (nonatomic, assign) float oldDistToFort;
+@property (nonatomic, assign) int wood;
+
+@property (nonatomic, assign) int countdown;
+@property (nonatomic, assign) int currState;
+
+enum soldierState {
+    passive = 0,
+    gathering = 1,
+    attacking = 2,
+    running = 3,
+    building = 4
+};
 
 @end

@@ -1,5 +1,5 @@
 //
-//  Base.h
+//  Fort.h
 //  DecisionFighter
 //
 //  Created by Nicholas Esposito on 8/19/13.
@@ -11,13 +11,14 @@
 #import "Box2D.h"
 #import "CCPhysicsSprite.h"
 
-@interface Base : CCPhysicsSprite {
+@interface Fort : CCPhysicsSprite {
 
 }
 
 @property (nonatomic, assign) int health;
 @property (nonatomic, assign) int team;
 @property (nonatomic, assign) int reserveCount;
+@property (nonatomic, assign) int countdown;
 @property (nonatomic, retain) NSMutableArray *soldierArray;
 
 @end
