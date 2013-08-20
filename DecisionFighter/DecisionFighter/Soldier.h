@@ -32,9 +32,10 @@
 enum soldierState {
     passive = 0,
     gathering = 1,
-    attacking = 2,
-    running = 3,
-    building = 4
+    fullInventory = 2,
+    attacking = 3,
+    running = 4,
+    building = 5
 };
 
 @end

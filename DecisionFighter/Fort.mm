@@ -10,7 +10,7 @@
 
 @implementation Fort
 
-@synthesize health, team, reserveCount, soldierArray;
+@synthesize health, team, reserveCount, soldierArray, woodCount;
 
 
 

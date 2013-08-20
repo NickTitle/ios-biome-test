@@ -11,6 +11,6 @@
 
 @implementation Tree
 
-@synthesize wood;
+@synthesize initialScale, initialWood, wood;
 
 @end

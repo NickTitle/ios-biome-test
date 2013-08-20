@@ -273,16 +273,18 @@ enum toolTags{
 	bodyDef.position.Set(p.x/PTM_RATIO, p.y/PTM_RATIO);
 	b2Body *body = world->CreateBody(&bodyDef);
     
-    b2PolygonShape fBox;
-    fBox.SetAsBox(.25,.25);
+    b2CircleShape fCirc;
+    fCirc.m_radius = .25;
     
 	b2FixtureDef fixtureDef;
-	fixtureDef.shape = &fBox;
+	fixtureDef.shape = &fCirc;
 	body->CreateFixture(&fixtureDef);
     
     Tree *t = [Tree spriteWithFile:@"tree.png" rect:CGRectMake(0, 0, 64, 64)];
-    t.scale = .5;
-	t.wood = arc4random_uniform(50)+5;
+    t.initialScale = .5+(arc4random_uniform(4)/10);
+    t.scale = t.initialScale;
+    t.initialWood = arc4random_uniform(50)+5;
+	t.wood = t.initialWood;
 	[t setPTMRatio:PTM_RATIO];
 	[t setB2Body:body];
     body->SetUserData(t);
@@ -290,22 +292,10 @@ enum toolTags{
     t.b2Body->SetTransform( t.b2Body->GetWorldCenter(), arc4random_uniform(3.14));
     return t;
 }
+
 -(void) killSpritesForTouch:(UITouch *)touch {
-//    NSMutableArray *killIndex = [NSMutableArray new];
-//    for (Soldier *s in gGArray) {
-//        if ([s.touch isEqual:touch]) {
-//            [killIndex addObject:s];
-//        }
-//    }
-//    for (Soldier *s in killIndex) {
-//        [gGArray removeObject:s];
-//        world->DestroyBody(s.b2Body);
-//        [s removeFromParentAndCleanup:YES];
-//        s = nil;
-//    }
+
 }
-
-
 
 -(void)toolSelected:(id)sender {
     NSString *toolType;
@@ -448,6 +438,14 @@ enum toolTags{
             [self collideSoldier:dA andTree:dB];
         }
     }
+    else if (([dA isKindOfClass:[Soldier class]] && [dB isKindOfClass:[Fort class]]) || ([dA isKindOfClass:[Fort class]] && [dB isKindOfClass:[Soldier class]])){
+        if ([dA class] == [Fort class]) {
+            [self collideSoldier:dB andFort:dA];
+        }
+        else {
+            [self collideSoldier:dA andFort:dB];
+        }
+    }
 }
 
 -(void)endContact:(b2Contact *)contact {
@@ -496,22 +494,38 @@ enum toolTags{
 
 -(void)collideSoldier:(Soldier *)s andTree:(Tree *)t {
     
-//    if (s.wood >= 25) {
-//        s.currState = passive;
-//        return;
-//    }
-//    else {
-    
+    if (s.currState != gathering) {
+        return;
+    }
+    else {
         s.wood += (MIN(t.wood, s.power));
         t.wood -= s.power;
-        
+        t.scale = t.initialScale*t.wood/t.initialWood;
         if (t.wood <= 0) {
             [treeArray removeObject:t];
             if (![killList containsObject:t]) {
                 [killList addObject:t];
             }
         }
-//    }
+        if (s.wood >= 10) {
+            s.currState = fullInventory;
+        }
+    }
+
+}
+
+-(void)collideSoldier:(Soldier *)s andFort:(Fort *)f {
+    
+    f.woodCount += s.wood;
+    s.wood = 0;
+    
+    if (s.currState == fullInventory) {
+        s.currState = gathering;
+    }
+
+    if (s.health < 100) {
+        s.health += (100-s.health)/2;
+    }
     
 }
 
@@ -543,7 +557,7 @@ enum toolTags{
         }
         else {
             sD.countdown = arc4random_uniform(600);
-            if (sD.currState == passive) {
+            if (sD.currState != gathering) {
                 sD.currState = gathering;
             }
             else {
@@ -552,7 +566,7 @@ enum toolTags{
         }
         
         CGPoint destination;
-        if (sD.currState == passive) {
+        if (sD.currState == passive || sD.currState == fullInventory) {
             destination = f.position;
         }
         else {
@@ -560,20 +574,20 @@ enum toolTags{
         }
 
         CGPoint sP = sD.position;
-        CGFloat dx1 = destination.x-sP.x;
-        CGFloat dy1 = destination.y-sP.y;
-        CGFloat angle = atan2f(dy1, dx1);
-        
-        float newDist;
+
+        CGFloat angle = [self PointPairToBearingDegreesStart:sP end:destination];
         
         b2Vec2 vel = sD.b2Body->GetLinearVelocity();
+        vel.x = sD.speed*cosf(angle);
+        vel.y = sD.speed*sinf(angle);
+        
+        float newDist;
+        newDist = ccpDistance(sD.position, destination);        
         
         if (sD.currState == passive) {
             
-            newDist = ccpDistance(sD.position, f.position);
-            
-            sD.momX += cos(angle);
-            sD.momY += sin(angle);
+            sD.momX = sP.x > destination.x ? -.1 : +.1;
+            sD.momY = sP.y > destination.y ? -.1 : +.1;
             
             vel.x += sD.momX;
             vel.y += sD.momY;
@@ -619,6 +633,15 @@ enum toolTags{
         }
     }
         return targetTree.position;
+}
+
+-(float) PointPairToBearingDegreesStart:(CGPoint)startingPoint end:(CGPoint)endingPoint
+{
+    CGPoint originPoint = CGPointMake(endingPoint.x - startingPoint.x, endingPoint.y - startingPoint.y); // get origin point to origin by subtracting end from start
+    float bearingRadians = atan2f(originPoint.y, originPoint.x); // get bearing in radians
+    float bearingDegrees = bearingRadians * (180.0 / M_PI); // convert to degrees
+    bearingDegrees = (bearingDegrees > 0.0 ? bearingDegrees : (360.0 + bearingDegrees)); // correct discontinuity
+    return bearingDegrees * M_PI/180;
 }
 
 -(void) dealloc

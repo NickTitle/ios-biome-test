@@ -19,6 +19,7 @@
 @property (nonatomic, assign) int team;
 @property (nonatomic, assign) int reserveCount;
 @property (nonatomic, assign) int countdown;
+@property (nonatomic, assign) int woodCount;
 @property (nonatomic, retain) NSMutableArray *soldierArray;
 
 @end

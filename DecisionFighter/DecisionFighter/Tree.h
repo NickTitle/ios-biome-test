@@ -14,6 +14,8 @@
     
 }
 
+@property (nonatomic, assign) float initialScale;
+@property (nonatomic, assign) int initialWood;
 @property (nonatomic, assign) int wood;
 
 @end
