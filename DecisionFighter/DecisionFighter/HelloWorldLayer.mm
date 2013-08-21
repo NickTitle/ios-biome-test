@@ -28,12 +28,9 @@ NSMutableArray *killList;
 SimpleContactListener *_contactListener;
 CCLabelTTF *toolLabel;
 
-int oldangle = 0;
-CGPoint loc1 = ccp(200,300);
-CGPoint loc2 = ccp (300, 100);
 bool skip = TRUE;
 int currentToolTag = 0;
-
+int dragCountdown = 0;
 enum {
 	kTagParentNode = 1,
 };
@@ -54,44 +51,32 @@ enum toolTags{
 
 @implementation HelloWorldLayer
 
+#pragma mark - INIT
+
 +(CCScene *) scene
 {
-	// 'scene' is an autorelease object.
 	CCScene *scene = [CCScene node];
-	
-	// 'layer' is an autorelease object.
 	HelloWorldLayer *layer = [HelloWorldLayer node];
-
-    
-	// add layer as a child to scene
 	[scene addChild: layer];
-	
-	// return the scene
 	return scene;
 }
 
 -(id) init
 {
 	if( (self=[super init])) {
-		
-		// enable events
-		
 		self.touchEnabled = YES;
 		self.accelerometerEnabled = YES;
         fortArray = [NSMutableArray new];
         treeArray = [NSMutableArray new];
         killList = [NSMutableArray new];
         
-		
-		// init physics
 		[self initPhysics];
-		
-		// create reset button
         [self createMenu];
-        
-		//Set up sprite
 		[self scheduleUpdate];
 	}
+    
+    [self createRandEntities];
+    
 	return self;
 }
 
@@ -102,7 +87,7 @@ enum toolTags{
 -(void) createMenu {
     CGSize winSize = [[CCDirector sharedDirector] winSize];
     
-    toolLabel = [[CCLabelTTF labelWithString:@"Tool:Bases" fontName:@"Helvetica" fontSize:32.0] retain];
+    toolLabel = [[CCLabelTTF labelWithString:@"Tool: " fontName:@"Helvetica" fontSize:32.0] retain];
     toolLabel.dimensions = CGSizeMake(320, 50);
     toolLabel.position = ccp(winSize.width/2, winSize.height-toolLabel.contentSize.height/2);
     [self addChild:toolLabel];
@@ -123,198 +108,14 @@ enum toolTags{
     [self addChild:toolMenu];
 }
 
--(BOOL) ccTouchBegan:(UITouch *)touch withEvent:(UIEvent *)event {
-    switch (currentToolTag) {
-        case baseToolTag:
-            [self touchToFortAction:touch];
-            break;
-            
-        case treeToolTag:
-            [self touchToTreeAction:touch];
-            break;
-            
-        case deleteToolTag:
-            [self touchToDeleteAction:touch];
-            break;
+-(void)createRandEntities {
+    CGSize winSize = [[CCDirector sharedDirector] winSize];
+    for (int i=0; i<4; i++) {
+        [self makeFortAtLocation:ccp(arc4random_uniform(winSize.width-100)+50, arc4random_uniform(winSize.height-50)+25)];
     }
-    
-    return YES;
-}
-
--(void) ccTouchMoved:(UITouch *)touch withEvent:(UIEvent *)event {
-}
-
--(void)ccTouchEnded:(UITouch *)touch withEvent:(UIEvent *)event
-{
-    
-}
-
--(void)touchToFortAction:(UITouch *)touch {
-    if ([fortArray count]< 4) {
-        CGPoint loc = [self convertTouchToNodeSpace:touch];
-        Fort *f = [self makeFortAtLocation:loc];
-        [fortArray addObject:f];
-        [self addChild:f];
+    for (int i=0; i<50; i++) {
+        [self makeTreeAtLocation:ccp(arc4random_uniform(winSize.width-100)+50, arc4random_uniform(winSize.height-50)+25)];
     }
-}
-
--(void)touchToTreeAction:(UITouch *)touch {
-    if ([treeArray count]< 200) {
-        CGPoint loc = [self convertTouchToNodeSpace:touch];
-        Tree *t = [self makeTreeAtLocation:loc];
-        [treeArray addObject:t];
-        [self addChild:t];
-    }
-}
-
--(Fort *)makeFortAtLocation:(CGPoint)p {
-
-    b2BodyDef bodyDef;
-	bodyDef.type = b2_staticBody;
-	bodyDef.position.Set(p.x/PTM_RATIO, p.y/PTM_RATIO);
-	b2Body *body = world->CreateBody(&bodyDef);
-    
-    b2PolygonShape fBox;
-    fBox.SetAsBox(.3,.3);
-    
-	b2FixtureDef fixtureDef;
-	fixtureDef.shape = &fBox;
-	body->CreateFixture(&fixtureDef);
-    
-    Fort *f;
-    
-    if (p.x > [[CCDirector sharedDirector] winSize].width/2) {
-        f = [Fort spriteWithFile:@"baseP.png"];
-        [f setTeam:teamA];
-    }
-    else {
-        f = [Fort spriteWithFile:@"baseB.png" rect:CGRectMake(0, 0, 160, 160)];
-        [f setTeam:teamB];
-    }
-    f.soldierArray = [NSMutableArray new];
-    f.scale = .5;
-	
-	[f setPTMRatio:PTM_RATIO];
-	[f setB2Body:body];
-    body->SetUserData(f);
-	[f setPosition: ccp( p.x, p.y)];
-    
-    [self makeSpritesForFort:f];
-    
-    return f;
-}
-
--(void) makeSpritesForFort:(Fort *)f {
-    CGPoint loc = f.position;
-    
-    for (int i = 0; i < 5; i++) {
-    
-        Soldier *gG = [self addNewSoldierAtLocation:loc];
-        gG.fort = f;
-        [f.soldierArray addObject:gG];
-        [self addChild:gG];
-    }
-}
-
--(Soldier *)addNewSoldierAtLocation:(CGPoint)p
-{
-    
-	b2BodyDef bodyDef;
-	bodyDef.type = b2_dynamicBody;
-	bodyDef.position.Set(p.x/PTM_RATIO, p.y/PTM_RATIO);
-	b2Body *body = world->CreateBody(&bodyDef);
-	
-    b2PolygonShape hexBox;
-    hexBox.SetAsBox(.25, .25);
-    
-	b2FixtureDef fixtureDef;
-	fixtureDef.shape = &hexBox;
-	fixtureDef.density = .7f;
-	fixtureDef.friction = 0.1f;
-	body->CreateFixture(&fixtureDef);
-    CCNode *parent = [self getChildByTag:kTagParentNode];
-    
-    Soldier *sprite;
-    
-    if (p.x > [[CCDirector sharedDirector] winSize].width/2) {
-        sprite = [Soldier spriteWithFile:@"pink.png" rect:CGRectMake(0, 0, 32, 32)];
-        [sprite setTeam:teamA];
-    }
-    else {
-        sprite = [Soldier spriteWithFile:@"blu.png" rect:CGRectMake(0, 0, 32, 32)];
-        [sprite setTeam:teamB];
-    }
-    
-    sprite.scale = .5;
-    
-    sprite.speed = arc4random_uniform(5)+5;
-    sprite.countdown = arc4random_uniform(300);
-    sprite.currState = passive;
-    sprite.momX = 0.0;
-    sprite.momY = 0.0;
-    sprite.health = 100;
-    sprite.power = arc4random_uniform(5)+1;
-    
-	[parent addChild:sprite];
-	
-	[sprite setPTMRatio:PTM_RATIO];
-	[sprite setB2Body:body];
-    body->SetUserData(sprite);
-	[sprite setPosition: ccp( p.x, p.y)];
-    
-    return sprite;
-    
-}
-
--(Tree *)makeTreeAtLocation:(CGPoint)p {
-    
-    b2BodyDef bodyDef;
-	bodyDef.type = b2_staticBody;
-	bodyDef.position.Set(p.x/PTM_RATIO, p.y/PTM_RATIO);
-	b2Body *body = world->CreateBody(&bodyDef);
-    
-    b2CircleShape fCirc;
-    fCirc.m_radius = .25;
-    
-	b2FixtureDef fixtureDef;
-	fixtureDef.shape = &fCirc;
-	body->CreateFixture(&fixtureDef);
-    
-    Tree *t = [Tree spriteWithFile:@"tree.png" rect:CGRectMake(0, 0, 64, 64)];
-    t.initialScale = .5+(arc4random_uniform(4)/10);
-    t.scale = t.initialScale;
-    t.initialWood = arc4random_uniform(50)+5;
-	t.wood = t.initialWood;
-	[t setPTMRatio:PTM_RATIO];
-	[t setB2Body:body];
-    body->SetUserData(t);
-	[t setPosition: ccp( p.x, p.y)];
-    t.b2Body->SetTransform( t.b2Body->GetWorldCenter(), arc4random_uniform(3.14));
-    return t;
-}
-
--(void) killSpritesForTouch:(UITouch *)touch {
-
-}
-
--(void)toolSelected:(id)sender {
-    NSString *toolType;
-    switch ([sender tag]) {
-        case baseToolTag: {
-            toolType = @"Bases";
-            break;
-        }
-        case treeToolTag: {
-            toolType = @"Trees";
-            break;
-        }
-        case deleteToolTag: {
-            toolType = @"Delete";
-            break;
-        }
-    }
-    currentToolTag = [sender tag];
-    [toolLabel setString:[NSString stringWithFormat:@"Tool:%@", toolType]];
 }
 
 -(void) initPhysics
@@ -356,21 +157,21 @@ enum toolTags{
 	b2Body* groundBody = world->CreateBody(&groundBodyDef);
 	
 	// Define the ground box shape.
-	b2EdgeShape groundBox;		
+	b2EdgeShape groundBox;
 	
 	// bottom
 	
 	groundBox.Set(b2Vec2(0,0), b2Vec2(s.width/PTM_RATIO,0));
 	groundBody->CreateFixture(&groundBox,0);
-
+    
 	// top
 	groundBox.Set(b2Vec2(0,s.height/PTM_RATIO), b2Vec2(s.width/PTM_RATIO,s.height/PTM_RATIO));
 	groundBody->CreateFixture(&groundBox,0);
-
+    
 	// left
 	groundBox.Set(b2Vec2(0,s.height/PTM_RATIO), b2Vec2(0,0));
 	groundBody->CreateFixture(&groundBox,0);
-
+    
 	// right
 	groundBox.Set(b2Vec2(s.width/PTM_RATIO,s.height/PTM_RATIO), b2Vec2(s.width/PTM_RATIO,0));
 	groundBody->CreateFixture(&groundBox,0);
@@ -383,38 +184,177 @@ enum toolTags{
 	// This is only for debug purposes
 	// It is recommend to disable it
 	//
-//	[super draw];
-//	ccGLEnableVertexAttribs( kCCVertexAttribFlag_Position );
-//	kmGLPushMatrix();
-//	world->DrawDebugData();
-//	kmGLPopMatrix();
-//    kmGLPushMatrix();
-//    kmGLScalef(CC_CONTENT_SCALE_FACTOR(), CC_CONTENT_SCALE_FACTOR(), 1.0f);
-//    world->DrawDebugData();
-//    kmGLPopMatrix();
+    //	[super draw];
+    //	ccGLEnableVertexAttribs( kCCVertexAttribFlag_Position );
+    //	kmGLPushMatrix();
+    //	world->DrawDebugData();
+    //	kmGLPopMatrix();
+    //    kmGLPushMatrix();
+    //    kmGLScalef(CC_CONTENT_SCALE_FACTOR(), CC_CONTENT_SCALE_FACTOR(), 1.0f);
+    //    world->DrawDebugData();
+    //    kmGLPopMatrix();
 }
 
--(void) update: (ccTime) dt
-{
-	//It is recommended that a fixed time step is used with Box2D for stability
-	//of the simulation, however, we are using a variable time step here.
-	//You need to make an informed choice, the following URL is useful
-	//http://gafferongames.com/game-physics/fix-your-timestep/
-	
-	int32 velocityIterations = 8;
-	int32 positionIterations = 3;
-	
-	// Instruct the world to perform a single step of simulation. It is
-	// generally best to keep the time step and iterations fixed
-    
-    [self updateSoldierMomentums];
-    if ([killList count]) {
-    [self killCollidedSprites];
+#pragma mark - Touches
+
+-(BOOL) ccTouchBegan:(UITouch *)touch withEvent:(UIEvent *)event {
+    [self createEntityWithToolAndTouch:touch];
+    return YES;
+}
+
+-(void) ccTouchMoved:(UITouch *)touch withEvent:(UIEvent *)event {
+    if (dragCountdown >0) {
+        dragCountdown -= 1;
     }
-	
-    world->Step(dt, velocityIterations, positionIterations);
+    else {
+        dragCountdown = 5;
+        [self createEntityWithToolAndTouch:touch];
+    }
 }
 
+-(void)ccTouchEnded:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    
+}
+
+-(void)toolSelected:(id)sender {
+    NSString *toolType;
+    switch ([sender tag]) {
+        case baseToolTag: {
+            toolType = @"Bases";
+            break;
+        }
+        case treeToolTag: {
+            toolType = @"Trees";
+            break;
+        }
+        case deleteToolTag: {
+            toolType = @"Delete";
+            break;
+        }
+    }
+    currentToolTag = [sender tag];
+    [toolLabel setString:[NSString stringWithFormat:@"Tool:%@", toolType]];
+}
+
+-(void) createEntityWithToolAndTouch:(UITouch *)touch {
+    switch (currentToolTag) {
+        case baseToolTag:
+            [self touchToFortAction:touch];
+            break;
+            
+        case treeToolTag:
+            [self touchToTreeAction:touch];
+            break;
+            
+        case deleteToolTag:
+            [self touchToDeleteAction:touch];
+            break;
+    }
+}
+
+-(void)touchToFortAction:(UITouch *)touch {
+    [self makeFortAtLocation:[self convertTouchToNodeSpace:touch]];
+}
+
+-(void)touchToTreeAction:(UITouch *)touch {
+    [self makeTreeAtLocation:[self convertTouchToNodeSpace:touch]];
+}
+
+#pragma mark - Constructors
+
+-(void)makeFortAtLocation:(CGPoint)p {
+    if ([fortArray count]> 4)
+        return;
+    
+    b2BodyDef bodyDef;
+	bodyDef.type = b2_staticBody;
+	bodyDef.position.Set(p.x/PTM_RATIO, p.y/PTM_RATIO);
+	b2Body *body = world->CreateBody(&bodyDef);
+    
+    b2PolygonShape fBox;
+    fBox.SetAsBox(.3,.3);
+    
+	b2FixtureDef fixtureDef;
+	fixtureDef.shape = &fBox;
+	body->CreateFixture(&fixtureDef);
+    
+    Fort *f;
+    
+    if (p.x > [[CCDirector sharedDirector] winSize].width/2) {
+        f = [Fort spriteWithFile:@"baseP.png"];
+        [f setTeam:teamA];
+    }
+    else {
+        f = [Fort spriteWithFile:@"baseB.png" rect:CGRectMake(0, 0, 160, 160)];
+        [f setTeam:teamB];
+    }
+    f.soldierArray = [NSMutableArray new];
+    f.scale = .5;
+    f.zOrder = baseZIndex;
+	
+	[f setPTMRatio:PTM_RATIO];
+	[f setB2Body:body];
+    body->SetUserData(f);
+	[f setPosition: ccp( p.x, p.y)];
+    
+    [self makeSpritesForFort:f];
+    [fortArray addObject:f];
+    [self addChild:f];
+}
+
+-(void) makeSpritesForFort:(Fort *)f {
+    CGPoint loc = f.position;
+    
+    for (int i = 0; i < 5; i++) {
+    
+        Soldier *gG = [self addNewSoldierAtLocation:loc];
+        gG.fort = f;
+        [f.soldierArray addObject:gG];
+        [self addChild:gG];
+    }
+}
+
+-(Soldier *)addNewSoldierAtLocation:(CGPoint)p
+{
+    Soldier *s = [Soldier makeSoldierAtPoint:p inWorld:world];
+    return s;
+}
+
+-(void)makeTreeAtLocation:(CGPoint)p {
+    if ([treeArray count]> 200) {
+        return;
+    }
+    b2BodyDef bodyDef;
+	bodyDef.type = b2_staticBody;
+	bodyDef.position.Set(p.x/PTM_RATIO, p.y/PTM_RATIO);
+	b2Body *body = world->CreateBody(&bodyDef);
+    
+    b2CircleShape fCirc;
+    fCirc.m_radius = .25;
+    
+	b2FixtureDef fixtureDef;
+	fixtureDef.shape = &fCirc;
+	body->CreateFixture(&fixtureDef);
+    
+    Tree *t = [Tree spriteWithFile:@"tree.png" rect:CGRectMake(0, 0, 64, 64)];
+    t.initialWood = 30+(arc4random_uniform(40));
+	t.wood = t.initialWood;
+    t.scale = (float)t.wood/float(treeMaxWood);
+    t.thresholdWood = .6*t.wood;
+    t.zOrder = treeZIndex;
+    [t resetGrowthCounter];
+	[t setPTMRatio:PTM_RATIO];
+	[t setB2Body:body];
+    body->SetUserData(t);
+	[t setPosition: ccp( p.x, p.y)];
+    t.b2Body->SetTransform( t.b2Body->GetWorldCenter(), arc4random_uniform(3.14));
+
+    [treeArray addObject:t];
+    [self addChild:t];
+}
+
+#pragma mark - COLLISIONS
 -(void)beginContact:(b2Contact *)contact {
     
     b2Fixture *fixtureA = contact->GetFixtureA();
@@ -493,25 +433,30 @@ enum toolTags{
 }
 
 -(void)collideSoldier:(Soldier *)s andTree:(Tree *)t {
-    
-    if (s.currState != gathering) {
+    if (s.sleep > 0) {
+        s.sleep -= 1;
         return;
     }
-    else {
+    
+    if (s.currState == gathering) {
         s.wood += (MIN(t.wood, s.power));
         t.wood -= s.power;
-        t.scale = t.initialScale*t.wood/t.initialWood;
+        t.scale = (float)t.wood/treeMaxWood;
+        [t resetGrowthCounter];
+        
         if (t.wood <= 0) {
             [treeArray removeObject:t];
             if (![killList containsObject:t]) {
                 [killList addObject:t];
             }
         }
+        
         if (s.wood >= 10) {
             s.currState = fullInventory;
         }
+        
+        s.sleep = 20;
     }
-
 }
 
 -(void)collideSoldier:(Soldier *)s andFort:(Fort *)f {
@@ -529,7 +474,6 @@ enum toolTags{
     
 }
 
-
 -(void)killCollidedSprites {
     for (CCPhysicsSprite *s in killList) {
     world->DestroyBody(s.b2Body);
@@ -539,7 +483,22 @@ enum toolTags{
     [killList removeAllObjects];
 }
 
--(void)updateSoldierMomentums {
+#pragma mark - UPDATES
+
+-(void) update: (ccTime) dt {
+	//http://gafferongames.com/game-physics/fix-your-timestep/
+	
+	int32 velocityIterations = 8;
+	int32 positionIterations = 3;
+    
+    [self updateSoldiers];
+    [self updateTrees];
+    if ([killList count]) { [self killCollidedSprites]; }
+	
+    world->Step(dt, velocityIterations, positionIterations);
+}
+
+-(void)updateSoldiers {
     skip = !skip;
     if (skip)
         return;
@@ -548,10 +507,11 @@ enum toolTags{
     }
 }
 
-- (void)updateSoldiersForFort:(Fort *)f {
+-(void)updateSoldiersForFort:(Fort *)f {
     
     for (Soldier *sD in f.soldierArray) {
         
+//        [sD showCurrState];
         if (sD.countdown > 0) {
             sD.countdown -= 1;
         }
@@ -572,6 +532,10 @@ enum toolTags{
         else {
             destination = [self nearestTreeToPos:sD.position];
         }
+        
+        destination.x += arc4random_uniform(3)-1.5;
+        destination.y += arc4random_uniform(3)-1.5;
+        
 
         CGPoint sP = sD.position;
 
@@ -582,10 +546,20 @@ enum toolTags{
         vel.y = sD.speed*sinf(angle);
         
         float newDist;
-        newDist = ccpDistance(sD.position, destination);        
-        
-        if (sD.currState == passive) {
+        newDist = ccpDistance(sD.position, destination);
+
+        if (newDist < 32) {
+            CGPoint sP = sD.position;
+            CGPoint tP = destination;
             
+            sP.x += (sP.x < tP.x ? -1 : 1);
+            sP.y += (sP.y < tP.y ? -1 : 1);
+
+            [sD setPosition:sP];
+        }
+        
+//        if (sD.currState == passive) {
+        
             sD.momX = sP.x > destination.x ? -.1 : +.1;
             sD.momY = sP.y > destination.y ? -.1 : +.1;
             
@@ -610,7 +584,7 @@ enum toolTags{
 //                }
 //            }
             
-        }
+//        }
         
         sD.b2Body->SetLinearVelocity(vel);
         float bodyAngle = atan2f(vel.y, vel.x);
@@ -621,6 +595,32 @@ enum toolTags{
         sD.oldDistToFort = newDist;
     }
 }
+
+-(void)updateTrees {
+    for (Tree *t in treeArray) {
+        if (t.wood < t.thresholdWood) {
+            //This tree cannot be fixed - too much damage :(
+            return;
+        }
+        if (t.growthCounter > 0) {
+            t.growthCounter -=1;
+        }
+        else {
+            [t resetGrowthCounter];
+            if (t.wood < treeMaxWood) {
+                t.wood = MIN(t.wood+3, treeMaxWood);
+                t.scale = (float)t.wood/treeMaxWood;
+                t.thresholdWood = t.wood *.6;
+            }
+            else {
+                
+            }
+        }
+        
+    }
+}
+
+#pragma mark - HELPERS
 
 -(CGPoint)nearestTreeToPos:(CGPoint)p {
     CGFloat minDist = 9999;

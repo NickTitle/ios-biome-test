@@ -18,4 +18,10 @@
 //to define the ratio so that your most common object type is 1x1 metre.
 #define PTM_RATIO 32
 
+#define treeZIndex 100
+#define baseZIndex 99
+#define soldierZIndex 98
+
+#define treeMaxWood 100
+
 #endif

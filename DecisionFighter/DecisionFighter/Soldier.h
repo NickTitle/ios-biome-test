@@ -25,9 +25,12 @@
 @property (nonatomic, assign) Fort *fort;
 @property (nonatomic, assign) float oldDistToFort;
 @property (nonatomic, assign) int wood;
+@property (nonatomic, assign) int sleep;
 
 @property (nonatomic, assign) int countdown;
 @property (nonatomic, assign) int currState;
+
+@property (nonatomic, retain) CCLabelTTF *debugLabel;
 
 enum soldierState {
     passive = 0,
@@ -37,5 +40,9 @@ enum soldierState {
     running = 4,
     building = 5
 };
+
++(Soldier *)makeSoldierAtPoint:(CGPoint)p inWorld:(b2World *)w;
+
+-(void)showCurrState;
 
 @end

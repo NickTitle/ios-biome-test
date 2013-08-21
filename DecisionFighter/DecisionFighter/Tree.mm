@@ -11,6 +11,9 @@
 
 @implementation Tree
 
-@synthesize initialScale, initialWood, wood;
+@synthesize initialScale, initialWood, wood, isDamaged, growthCounter, thresholdWood;
 
+-(void)resetGrowthCounter {
+    self.growthCounter = 100+arc4random_uniform(400);
+}
 @end
