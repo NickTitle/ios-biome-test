@@ -17,16 +17,20 @@
 #import "Fort.h"
 #import "Soldier.h"
 #import "Tree.h"
+#import "Field.h"
 
 // Needed to obtain the Navigation Controller
 #import "AppDelegate.h"
 
 NSMutableArray *fortArray;
+NSMutableArray *saplingArray;
+NSMutableArray *fieldArray;
 NSMutableArray *treeArray;
 
 NSMutableArray *killList;
 SimpleContactListener *_contactListener;
 CCLabelTTF *toolLabel;
+CGSize winSize;
 
 bool skip = TRUE;
 int currentToolTag = 0;
@@ -38,7 +42,8 @@ enum {
 enum toolTags{
     baseToolTag = 990,
     treeToolTag = 991,
-    deleteToolTag = 992
+    fieldToolTag = 992,
+    deleteToolTag = 993
 };
 
 #pragma mark - HelloWorldLayer
@@ -67,8 +72,11 @@ enum toolTags{
 		self.touchEnabled = YES;
 		self.accelerometerEnabled = YES;
         fortArray = [NSMutableArray new];
+        saplingArray = [NSMutableArray new];
         treeArray = [NSMutableArray new];
+        fieldArray = [NSMutableArray new];
         killList = [NSMutableArray new];
+        winSize = [[CCDirector sharedDirector] winSize];
         
 		[self initPhysics];
         [self createMenu];
@@ -85,7 +93,6 @@ enum toolTags{
 }
 
 -(void) createMenu {
-    CGSize winSize = [[CCDirector sharedDirector] winSize];
     
     toolLabel = [[CCLabelTTF labelWithString:@"Tool: " fontName:@"Helvetica" fontSize:32.0] retain];
     toolLabel.dimensions = CGSizeMake(320, 50);
@@ -102,14 +109,18 @@ enum toolTags{
     treeMenuItem.scale = .5;
     treeMenuItem.position = ccp(32, winSize.height - 128);
     
-    CCMenu *toolMenu = [CCMenu menuWithItems:baseMenuItem, treeMenuItem, nil];
+    CCMenuItem *fieldMenuItem = [CCMenuItemImage itemWithNormalImage:@"field.png" selectedImage:@"field.png" disabledImage:@"field.png" target:self selector:@selector(toolSelected:)];
+    fieldMenuItem.tag = fieldToolTag;
+    fieldMenuItem.scale = .5;
+    fieldMenuItem.position = ccp(32, winSize.height - 196);
+    
+    CCMenu *toolMenu = [CCMenu menuWithItems:baseMenuItem, treeMenuItem, fieldMenuItem, nil];
     toolMenu.position = ccp(0,0);
     toolMenu.zOrder = 999;
     [self addChild:toolMenu];
 }
 
 -(void)createRandEntities {
-    CGSize winSize = [[CCDirector sharedDirector] winSize];
     for (int i=0; i<4; i++) {
         [self makeFortAtLocation:ccp(arc4random_uniform(winSize.width-100)+50, arc4random_uniform(winSize.height-50)+25)];
     }
@@ -119,10 +130,7 @@ enum toolTags{
 }
 
 -(void) initPhysics
-{
-	
-	CGSize s = [[CCDirector sharedDirector] winSize];
-	
+{	
 	b2Vec2 gravity;
 	gravity.Set(0.0f, 0.0f);
 	world = new b2World(gravity);
@@ -161,19 +169,19 @@ enum toolTags{
 	
 	// bottom
 	
-	groundBox.Set(b2Vec2(0,0), b2Vec2(s.width/PTM_RATIO,0));
+	groundBox.Set(b2Vec2(0,0), b2Vec2(winSize.width/PTM_RATIO,0));
 	groundBody->CreateFixture(&groundBox,0);
     
 	// top
-	groundBox.Set(b2Vec2(0,s.height/PTM_RATIO), b2Vec2(s.width/PTM_RATIO,s.height/PTM_RATIO));
+	groundBox.Set(b2Vec2(0,winSize.height/PTM_RATIO), b2Vec2(winSize.width/PTM_RATIO,winSize.height/PTM_RATIO));
 	groundBody->CreateFixture(&groundBox,0);
     
 	// left
-	groundBox.Set(b2Vec2(0,s.height/PTM_RATIO), b2Vec2(0,0));
+	groundBox.Set(b2Vec2(0,winSize.height/PTM_RATIO), b2Vec2(0,0));
 	groundBody->CreateFixture(&groundBox,0);
     
 	// right
-	groundBox.Set(b2Vec2(s.width/PTM_RATIO,s.height/PTM_RATIO), b2Vec2(s.width/PTM_RATIO,0));
+	groundBox.Set(b2Vec2(winSize.width/PTM_RATIO,winSize.height/PTM_RATIO), b2Vec2(winSize.width/PTM_RATIO,0));
 	groundBody->CreateFixture(&groundBox,0);
 }
 
@@ -228,6 +236,10 @@ enum toolTags{
             toolType = @"Trees";
             break;
         }
+        case fieldToolTag: {
+            toolType = @"Fields";
+            break;
+        }
         case deleteToolTag: {
             toolType = @"Delete";
             break;
@@ -246,7 +258,9 @@ enum toolTags{
         case treeToolTag:
             [self touchToTreeAction:touch];
             break;
-            
+        case fieldToolTag:
+            [self touchToFieldAction:touch];
+            break;
         case deleteToolTag:
             [self touchToDeleteAction:touch];
             break;
@@ -261,6 +275,9 @@ enum toolTags{
     [self makeTreeAtLocation:[self convertTouchToNodeSpace:touch]];
 }
 
+-(void)touchToFieldAction:(UITouch *)touch {
+    [self makeFieldAtLocation:[self convertTouchToNodeSpace:touch]];
+}
 #pragma mark - Constructors
 
 -(void)makeFortAtLocation:(CGPoint)p {
@@ -281,7 +298,7 @@ enum toolTags{
     
     Fort *f;
     
-    if (p.x > [[CCDirector sharedDirector] winSize].width/2) {
+    if (p.x > winSize.width/2) {
         f = [Fort spriteWithFile:@"baseP.png"];
         [f setTeam:teamA];
     }
@@ -321,8 +338,14 @@ enum toolTags{
     return s;
 }
 
+-(void)makeFieldAtLocation:(CGPoint)p {
+    Field *f = [Field makeFieldAtPoint:p inWorld:world];
+    [fieldArray addObject:f];
+    [self addChild:f];
+}
+
 -(void)makeTreeAtLocation:(CGPoint)p {
-    if ([treeArray count]> 200) {
+    if ([treeArray count]> 175) {
         return;
     }
     b2BodyDef bodyDef;
@@ -439,7 +462,8 @@ enum toolTags{
     }
     
     if (s.currState == gathering) {
-        s.wood += (MIN(t.wood, s.power));
+        s.inventoryCount += (MIN(t.wood, s.power));
+        s.inventoryType = wood;
         t.wood -= s.power;
         t.scale = (float)t.wood/treeMaxWood;
         [t resetGrowthCounter];
@@ -451,7 +475,7 @@ enum toolTags{
             }
         }
         
-        if (s.wood >= 10) {
+        if (s.inventoryCount >= 10) {
             s.currState = fullInventory;
         }
         
@@ -461,16 +485,7 @@ enum toolTags{
 
 -(void)collideSoldier:(Soldier *)s andFort:(Fort *)f {
     
-    f.woodCount += s.wood;
-    s.wood = 0;
-    
-    if (s.currState == fullInventory) {
-        s.currState = gathering;
-    }
-
-    if (s.health < 100) {
-        s.health += (100-s.health)/2;
-    }
+    [f takeSuppliesFromSoldier:s];
     
 }
 
@@ -483,6 +498,14 @@ enum toolTags{
     [killList removeAllObjects];
 }
 
+-(void)plantSaplings {
+    for (int i=0; i < [saplingArray count]; i++) {
+        CGPoint p = [[saplingArray objectAtIndex:0] CGPointValue];
+        [self makeTreeAtLocation:p];
+    }
+    [saplingArray removeAllObjects];
+}
+
 #pragma mark - UPDATES
 
 -(void) update: (ccTime) dt {
@@ -490,12 +513,22 @@ enum toolTags{
 	
 	int32 velocityIterations = 8;
 	int32 positionIterations = 3;
+
+    float maximumStep = 0.08;
+    float progress = 0.0;
+    while (progress < dt)
+    {
+        float step = min((dt-progress), maximumStep);
+        world->Step(dt, velocityIterations, positionIterations);
+        progress += step;
+    }
     
     [self updateSoldiers];
     [self updateTrees];
+    [self updateFields];
     if ([killList count]) { [self killCollidedSprites]; }
+    if ([saplingArray count]) { [self plantSaplings]; }
 	
-    world->Step(dt, velocityIterations, positionIterations);
 }
 
 -(void)updateSoldiers {
@@ -533,13 +566,13 @@ enum toolTags{
             destination = [self nearestTreeToPos:sD.position];
         }
         
-        destination.x += arc4random_uniform(3)-1.5;
-        destination.y += arc4random_uniform(3)-1.5;
+//        destination.x += arc4random_uniform(30)/10.-1.5;
+//        destination.y += arc4random_uniform(30)/10.-1.5;
         
 
         CGPoint sP = sD.position;
 
-        CGFloat angle = [self PointPairToBearingDegreesStart:sP end:destination];
+        CGFloat angle = [self pointPairToBearingDegreesStart:sP end:destination];
         
         b2Vec2 vel = sD.b2Body->GetLinearVelocity();
         vel.x = sD.speed*cosf(angle);
@@ -552,8 +585,8 @@ enum toolTags{
             CGPoint sP = sD.position;
             CGPoint tP = destination;
             
-            sP.x += (sP.x < tP.x ? -1 : 1);
-            sP.y += (sP.y < tP.y ? -1 : 1);
+            sP.x += (sP.x < tP.x ? -.1 : .1);
+            sP.y += (sP.y < tP.y ? -.1 : .1);
 
             [sD setPosition:sP];
         }
@@ -613,11 +646,51 @@ enum toolTags{
                 t.thresholdWood = t.wood *.6;
             }
             else {
-                
+                if (t.saplingGrowthCounter >0) {
+                    t.saplingGrowthCounter -=1;
+                }
+                else {
+                    [self createSaplingForTree:t];
+                    t.saplingGrowthCounter = 100+arc4random_uniform(100);
+                }
             }
         }
         
     }
+}
+
+-(void)updateFields {
+    for (Field *f in fieldArray) {
+        if (f.growthCountdown > 0) {
+            f.growthCountdown -= 1;
+        }
+        else {
+            [f resetGrowthCounter];
+            if (f.tended == TRUE) {
+                f.tended = false;
+                f.fieldState += 1;
+                f.fieldState = MIN(f.fieldState, 4);
+            }
+            else {
+                f.tended = TRUE;
+            }
+            [f updateSprite];
+        }
+    }
+}
+
+-(void)createSaplingForTree:(Tree *)t {
+    CGPoint fCOM = [self forestCenterOfMassForPoint:t.position];
+    CGFloat newAngle = [self pointPairToBearingDegreesStart:fCOM end:t.position];
+    newAngle += arc4random_uniform(162)/100.-.81;
+//    CGFloat fDist = ccpDistance(fCOM, t.position);
+    CGPoint newTreePoint = t.position;
+    newTreePoint.x += 32*cos(newAngle);
+    newTreePoint.y += 32*sin(newAngle);
+    newTreePoint.x = MAX(0, MIN(newTreePoint.x, winSize.width) );
+    newTreePoint.y = MAX(0, MIN(newTreePoint.y, winSize.height) );
+    [saplingArray addObject:[NSValue valueWithCGPoint:newTreePoint]];
+    
 }
 
 #pragma mark - HELPERS
@@ -635,7 +708,27 @@ enum toolTags{
         return targetTree.position;
 }
 
--(float) PointPairToBearingDegreesStart:(CGPoint)startingPoint end:(CGPoint)endingPoint
+-(CGPoint)forestCenterOfMassForPoint:(CGPoint)p {
+    CGFloat pointsRecorded = 0.0;
+    CGPoint cOM = ccp(0,0);
+    for (Tree *t in treeArray) {
+        CGPoint tP = t.position;
+//        if (ccpDistance(p, tP) > 600) {
+//            continue;
+//        }
+//        else {
+            pointsRecorded +=1;
+            cOM.x += tP.x;
+            cOM.y += tP.y;
+//        }
+    }
+    cOM.x /= pointsRecorded;
+    cOM.y /= pointsRecorded;
+    
+    return cOM;
+}
+
+-(float) pointPairToBearingDegreesStart:(CGPoint)startingPoint end:(CGPoint)endingPoint
 {
     CGPoint originPoint = CGPointMake(endingPoint.x - startingPoint.x, endingPoint.y - startingPoint.y); // get origin point to origin by subtracting end from start
     float bearingRadians = atan2f(originPoint.y, originPoint.x); // get bearing in radians

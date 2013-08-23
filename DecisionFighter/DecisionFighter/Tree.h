@@ -19,6 +19,7 @@
 @property (nonatomic, assign) int wood;
 @property (nonatomic, assign) int thresholdWood;
 @property (nonatomic, assign) BOOL isDamaged;
+@property (nonatomic, assign) int saplingGrowthCounter;
 @property (nonatomic, assign) int growthCounter;
 
 -(void)resetGrowthCounter;

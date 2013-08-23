@@ -195,6 +195,9 @@
 		19929B0017BD2D2F007AB6F4 /* blocks.png in Resources */ = {isa = PBXBuildFile; fileRef = 19929AFF17BD2D2F007AB6F4 /* blocks.png */; };
 		19929B0717BD3335007AB6F4 /* seeker.png in Resources */ = {isa = PBXBuildFile; fileRef = 19929B0617BD3335007AB6F4 /* seeker.png */; };
 		19929B0F17BD40EF007AB6F4 /* blu.png in Resources */ = {isa = PBXBuildFile; fileRef = 19929B0E17BD40EF007AB6F4 /* blu.png */; };
+		19ABBB3E17C80F1900CC3928 /* field.png in Resources */ = {isa = PBXBuildFile; fileRef = 19ABBB3C17C80F1900CC3928 /* field.png */; };
+		19ABBB3F17C80F1900CC3928 /* field-hd.png in Resources */ = {isa = PBXBuildFile; fileRef = 19ABBB3D17C80F1900CC3928 /* field-hd.png */; };
+		19ABBB4217C80F7400CC3928 /* Field.mm in Sources */ = {isa = PBXBuildFile; fileRef = 19ABBB4117C80F7400CC3928 /* Field.mm */; };
 		19B9DC5517BEBBBA00D56EED /* pink.png in Resources */ = {isa = PBXBuildFile; fileRef = 19B9DC5317BEBAE400D56EED /* pink.png */; };
 		19EAEAEF17C2AB9600BEE216 /* baseB.png in Resources */ = {isa = PBXBuildFile; fileRef = 19EAEAEB17C2AB9600BEE216 /* baseB.png */; };
 		19EAEAF017C2AB9600BEE216 /* baseB-hd.png in Resources */ = {isa = PBXBuildFile; fileRef = 19EAEAEC17C2AB9600BEE216 /* baseB-hd.png */; };
@@ -592,6 +595,10 @@
 		19929B0617BD3335007AB6F4 /* seeker.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = seeker.png; path = Resources/seeker.png; sourceTree = "<group>"; };
 		19929B0E17BD40EF007AB6F4 /* blu.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = blu.png; path = Resources/blu.png; sourceTree = "<group>"; };
 		19929B1417BEA402007AB6F4 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
+		19ABBB3C17C80F1900CC3928 /* field.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = field.png; path = Resources/field.png; sourceTree = "<group>"; };
+		19ABBB3D17C80F1900CC3928 /* field-hd.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "field-hd.png"; path = "Resources/field-hd.png"; sourceTree = "<group>"; };
+		19ABBB4017C80F7400CC3928 /* Field.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Field.h; path = DecisionFighter/Field.h; sourceTree = "<group>"; };
+		19ABBB4117C80F7400CC3928 /* Field.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = Field.mm; path = DecisionFighter/Field.mm; sourceTree = "<group>"; };
 		19B9DC5317BEBAE400D56EED /* pink.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = pink.png; path = Resources/pink.png; sourceTree = "<group>"; };
 		19B9DC5A17BEBFBD00D56EED /* SimpleContactListener.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SimpleContactListener.h; sourceTree = "<group>"; };
 		19EAEAEB17C2AB9600BEE216 /* baseB.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = baseB.png; path = Resources/baseB.png; sourceTree = "<group>"; };
@@ -684,6 +691,8 @@
 		199298D017BD2D2B007AB6F4 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				19ABBB3C17C80F1900CC3928 /* field.png */,
+				19ABBB3D17C80F1900CC3928 /* field-hd.png */,
 				193B684A17C3FD1800A00CD9 /* tree.png */,
 				193B684B17C3FD1800A00CD9 /* tree-hd.png */,
 				19EAEAEB17C2AB9600BEE216 /* baseB.png */,
@@ -1242,6 +1251,8 @@
 				19EAEAF417C2ABDF00BEE216 /* Soldier.mm */,
 				193B684E17C403A900A00CD9 /* Tree.h */,
 				193B684F17C403A900A00CD9 /* Tree.mm */,
+				19ABBB4017C80F7400CC3928 /* Field.h */,
+				19ABBB4117C80F7400CC3928 /* Field.mm */,
 			);
 			name = Entities;
 			sourceTree = "<group>";
@@ -1321,6 +1332,8 @@
 				19EAEAF217C2AB9600BEE216 /* baseP-hd.png in Resources */,
 				193B684C17C3FD1800A00CD9 /* tree.png in Resources */,
 				193B684D17C3FD1800A00CD9 /* tree-hd.png in Resources */,
+				19ABBB3E17C80F1900CC3928 /* field.png in Resources */,
+				19ABBB3F17C80F1900CC3928 /* field-hd.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1492,6 +1505,7 @@
 				19EAEAF517C2ABDF00BEE216 /* Soldier.mm in Sources */,
 				19EAEAF917C2C86300BEE216 /* Fort.mm in Sources */,
 				193B685017C403A900A00CD9 /* Tree.mm in Sources */,
+				19ABBB4217C80F7400CC3928 /* Field.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -26,4 +26,5 @@
 +(CCScene *) scene;
 -(void)beginContact:(b2Contact *)contact;
 -(void)endContact:(b2Contact *)contact;
+
 @end

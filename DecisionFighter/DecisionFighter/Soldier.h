@@ -24,9 +24,9 @@
 @property (nonatomic, assign) float momY;
 @property (nonatomic, assign) Fort *fort;
 @property (nonatomic, assign) float oldDistToFort;
-@property (nonatomic, assign) int wood;
+@property (nonatomic, assign) int inventoryCount;
+@property (nonatomic, assign) int inventoryType;
 @property (nonatomic, assign) int sleep;
-
 @property (nonatomic, assign) int countdown;
 @property (nonatomic, assign) int currState;
 
@@ -39,6 +39,11 @@ enum soldierState {
     attacking = 3,
     running = 4,
     building = 5
+};
+
+enum inventoryType {
+    wood = 0,
+    food = 1
 };
 
 +(Soldier *)makeSoldierAtPoint:(CGPoint)p inWorld:(b2World *)w;

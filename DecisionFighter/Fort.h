@@ -11,6 +11,8 @@
 #import "Box2D.h"
 #import "CCPhysicsSprite.h"
 
+@class Soldier;
+
 @interface Fort : CCPhysicsSprite {
 
 }
@@ -20,6 +22,9 @@
 @property (nonatomic, assign) int reserveCount;
 @property (nonatomic, assign) int countdown;
 @property (nonatomic, assign) int woodCount;
+@property (nonatomic, assign) int foodCount;
 @property (nonatomic, retain) NSMutableArray *soldierArray;
+
+-(void)takeSuppliesFromSoldier:(Soldier *)s;
 
 @end

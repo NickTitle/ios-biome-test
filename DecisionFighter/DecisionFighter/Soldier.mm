@@ -11,7 +11,7 @@
 
 @implementation Soldier
 
-@synthesize health, speed, team, power, momX, momY, fort, oldDistToFort, currState, countdown, wood, sleep, debugLabel;
+@synthesize health, speed, team, power, momX, momY, fort, oldDistToFort, currState, countdown, inventoryCount, inventoryType, sleep, debugLabel;
 
 +(Soldier *)makeSoldierAtPoint:(CGPoint)p inWorld:(b2World *)w {
     
