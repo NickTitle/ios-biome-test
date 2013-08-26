@@ -25,6 +25,7 @@
 @property (nonatomic, assign) int foodCount;
 @property (nonatomic, retain) NSMutableArray *soldierArray;
 
++(Fort *)makeFortAtPoint:(CGPoint)p inWorld:(b2World *)w;
 -(void)takeSuppliesFromSoldier:(Soldier *)s;
 
 @end

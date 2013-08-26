@@ -284,39 +284,9 @@ enum toolTags{
     if ([fortArray count]> 4)
         return;
     
-    b2BodyDef bodyDef;
-	bodyDef.type = b2_staticBody;
-	bodyDef.position.Set(p.x/PTM_RATIO, p.y/PTM_RATIO);
-	b2Body *body = world->CreateBody(&bodyDef);
-    
-    b2PolygonShape fBox;
-    fBox.SetAsBox(.3,.3);
-    
-	b2FixtureDef fixtureDef;
-	fixtureDef.shape = &fBox;
-	body->CreateFixture(&fixtureDef);
-    
-    Fort *f;
-    
-    if (p.x > winSize.width/2) {
-        f = [Fort spriteWithFile:@"baseP.png"];
-        [f setTeam:teamA];
-    }
-    else {
-        f = [Fort spriteWithFile:@"baseB.png" rect:CGRectMake(0, 0, 160, 160)];
-        [f setTeam:teamB];
-    }
-    f.soldierArray = [NSMutableArray new];
-    f.scale = .5;
-    f.zOrder = baseZIndex;
-	
-	[f setPTMRatio:PTM_RATIO];
-	[f setB2Body:body];
-    body->SetUserData(f);
-	[f setPosition: ccp( p.x, p.y)];
-    
-    [self makeSpritesForFort:f];
+    Fort *f = [Fort makeFortAtPoint:p inWorld:world];
     [fortArray addObject:f];
+    [self makeSpritesForFort:f];
     [self addChild:f];
 }
 

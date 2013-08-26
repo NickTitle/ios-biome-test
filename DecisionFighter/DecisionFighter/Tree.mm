@@ -15,7 +15,6 @@
 
 -(void)resetGrowthCounter {
     self.growthCounter = 100+arc4random_uniform(400);
-//    self.growthCounter = 10+arc4random_uniform(10);
 }
 
 @end
