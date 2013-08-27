@@ -58,6 +58,7 @@
             break;
     }
     s.inventoryCount = 0;
+    s.inventoryType = empty;
     
     if (s.currState == fullInventory) {
         s.currState = gathering;

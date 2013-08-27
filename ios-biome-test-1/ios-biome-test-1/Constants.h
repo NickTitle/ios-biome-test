@@ -24,4 +24,9 @@
 
 #define treeMaxWood 100
 
+#define coll_TeamA 0x0002
+#define coll_TeamB 0x0003
+#define coll_Field 0x0004
+#define coll_Tree 0x0005
+
 #endif

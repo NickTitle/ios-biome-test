@@ -127,6 +127,9 @@ enum toolTags{
     for (int i=0; i<50; i++) {
         [self makeTreeAtLocation:ccp(arc4random_uniform(winSize.width-100)+50, arc4random_uniform(winSize.height-50)+25)];
     }
+    for (int i=0; i<50; i++) {
+        [self makeFieldAtLocation:ccp(arc4random_uniform(winSize.width-100)+50, arc4random_uniform(winSize.height-50)+25)];
+    }
 }
 
 -(void) initPhysics
@@ -318,31 +321,8 @@ enum toolTags{
     if ([treeArray count]> 175) {
         return;
     }
-    b2BodyDef bodyDef;
-	bodyDef.type = b2_staticBody;
-	bodyDef.position.Set(p.x/PTM_RATIO, p.y/PTM_RATIO);
-	b2Body *body = world->CreateBody(&bodyDef);
-    
-    b2CircleShape fCirc;
-    fCirc.m_radius = .25;
-    
-	b2FixtureDef fixtureDef;
-	fixtureDef.shape = &fCirc;
-	body->CreateFixture(&fixtureDef);
-    
-    Tree *t = [Tree spriteWithFile:@"tree.png" rect:CGRectMake(0, 0, 64, 64)];
-    t.initialWood = 30+(arc4random_uniform(40));
-	t.wood = t.initialWood;
-    t.scale = (float)t.wood/float(treeMaxWood);
-    t.thresholdWood = .6*t.wood;
-    t.zOrder = treeZIndex;
-    [t resetGrowthCounter];
-	[t setPTMRatio:PTM_RATIO];
-	[t setB2Body:body];
-    body->SetUserData(t);
-	[t setPosition: ccp( p.x, p.y)];
-    t.b2Body->SetTransform( t.b2Body->GetWorldCenter(), arc4random_uniform(3.14));
 
+    Tree *t = [Tree makeTreeAtPoint:p inWorld:world];
     [treeArray addObject:t];
     [self addChild:t];
 }
@@ -369,6 +349,14 @@ enum toolTags{
         }
         else {
             [self collideSoldier:dA andTree:dB];
+        }
+    }
+    else if (([dA isKindOfClass:[Soldier class]] && [dB isKindOfClass:[Field class]]) || ([dA isKindOfClass:[Field class]] && [dB isKindOfClass:[Soldier class]])){
+        if ([dA class] == [Field class]) {
+            [self collideSoldier:dB andField:dA];
+        }
+        else {
+            [self collideSoldier:dA andField:dB];
         }
     }
     else if (([dA isKindOfClass:[Soldier class]] && [dB isKindOfClass:[Fort class]]) || ([dA isKindOfClass:[Fort class]] && [dB isKindOfClass:[Soldier class]])){
@@ -453,6 +441,31 @@ enum toolTags{
     }
 }
 
+-(void)collideSoldier:(Soldier *)s andField:(Field *)f {
+    if (s.sleep > 0) {
+        s.sleep -= 1;
+        return;
+    }
+    
+    if (s.currState == gathering) {
+        if (f.fieldState == ripe) {
+            s.inventoryCount += (MIN(3, s.power));
+            s.inventoryType = food;
+            f.fieldState = dirt;
+            [f resetGrowthCounter];
+        }
+        else {
+            f.tended = true;
+        }
+    
+        if (s.inventoryCount >= 10) {
+            s.currState = fullInventory;
+        }
+        
+        s.sleep = 20;
+    }
+}
+
 -(void)collideSoldier:(Soldier *)s andFort:(Fort *)f {
     
     [f takeSuppliesFromSoldier:s];
@@ -519,6 +532,9 @@ enum toolTags{
             sD.countdown -= 1;
         }
         else {
+            if (sD.inventoryType == empty) {
+                sD.inventoryType = arc4random_uniform(1)+1;
+            }
             sD.countdown = arc4random_uniform(600);
             if (sD.currState != gathering) {
                 sD.currState = gathering;
@@ -533,12 +549,13 @@ enum toolTags{
             destination = f.position;
         }
         else {
-            destination = [self nearestTreeToPos:sD.position];
+            if (sD.inventoryType == wood) {
+                destination = [self nearestTreeToPos:sD.position];
+            }
+            else {
+                destination = [self nearestFieldToPos:sD.position];
+            }
         }
-        
-//        destination.x += arc4random_uniform(30)/10.-1.5;
-//        destination.y += arc4random_uniform(30)/10.-1.5;
-        
 
         CGPoint sP = sD.position;
 
@@ -561,8 +578,6 @@ enum toolTags{
             [sD setPosition:sP];
         }
         
-//        if (sD.currState == passive) {
-        
             sD.momX = sP.x > destination.x ? -.1 : +.1;
             sD.momY = sP.y > destination.y ? -.1 : +.1;
             
@@ -570,24 +585,12 @@ enum toolTags{
             vel.y += sD.momY;
             
             CGFloat totalMomentum = abs(vel.x)+abs(vel.y);
-            
-//            if (newDist <= 64) {
-//                vel.x *= .3;
-//                vel.y *= .3;
-//            }
-//            else {
+        
                 if (totalMomentum > sD.speed) {
                     CGFloat scale = sD.speed/totalMomentum;
                     vel.x *= scale;
                     vel.y *= scale;
                 }
-//                if (newDist > sD.oldDistToFort) {
-//                    vel.x *= .75;
-//                    vel.y *= .75;
-//                }
-//            }
-            
-//        }
         
         sD.b2Body->SetLinearVelocity(vel);
         float bodyAngle = atan2f(vel.y, vel.x);
@@ -653,14 +656,12 @@ enum toolTags{
     CGPoint fCOM = [self forestCenterOfMassForPoint:t.position];
     CGFloat newAngle = [self pointPairToBearingDegreesStart:fCOM end:t.position];
     newAngle += arc4random_uniform(162)/100.-.81;
-//    CGFloat fDist = ccpDistance(fCOM, t.position);
     CGPoint newTreePoint = t.position;
     newTreePoint.x += 32*cos(newAngle);
     newTreePoint.y += 32*sin(newAngle);
     newTreePoint.x = MAX(0, MIN(newTreePoint.x, winSize.width) );
     newTreePoint.y = MAX(0, MIN(newTreePoint.y, winSize.height) );
     [saplingArray addObject:[NSValue valueWithCGPoint:newTreePoint]];
-    
 }
 
 #pragma mark - HELPERS
@@ -676,6 +677,19 @@ enum toolTags{
         }
     }
         return targetTree.position;
+}
+
+-(CGPoint)nearestFieldToPos:(CGPoint)p {
+    CGFloat minDist = 9999;
+    Field *targetField = nil;
+    for (Field *f in fieldArray) {
+        CGFloat fDist = ccpDistance(p, f.position);
+        if (fDist < minDist && (f.tended == false || f.fieldState == ripe)) {
+            targetField = f;
+            minDist = fDist;
+        }
+    }
+    return targetField.position;
 }
 
 -(CGPoint)forestCenterOfMassForPoint:(CGPoint)p {

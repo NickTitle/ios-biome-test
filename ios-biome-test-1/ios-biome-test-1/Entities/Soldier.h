@@ -42,8 +42,9 @@ enum soldierState {
 };
 
 enum inventoryType {
-    wood = 0,
-    food = 1
+    empty = 0,
+    wood = 1,
+    food = 2
 };
 
 +(Soldier *)makeSoldierAtPoint:(CGPoint)p inWorld:(b2World *)w;

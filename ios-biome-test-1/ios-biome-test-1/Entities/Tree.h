@@ -8,6 +8,7 @@
 
 #import <Foundation/Foundation.h>
 #import "cocos2d.h"
+#import "Box2D.h"
 #import "CCPhysicsSprite.h"
 
 @interface Tree : CCPhysicsSprite {
@@ -23,4 +24,7 @@
 @property (nonatomic, assign) int growthCounter;
 
 -(void)resetGrowthCounter;
+
++(Tree *)makeTreeAtPoint:(CGPoint)p inWorld:(b2World *)w;
+
 @end
